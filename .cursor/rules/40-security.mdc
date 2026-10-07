@@ -1,0 +1,19 @@
+---
+description: Security, privacy and authorization rules
+alwaysApply: true
+---
+
+# Security Rules
+
+- Authorization is server-side.
+- UI hiding is not access control.
+- Validate all writes.
+- Least privilege.
+- MFA privileged internal roles.
+- No secrets in source/public/admin responses.
+- Sensitive source data never enters public API, Search, analytics, logs or client bundles.
+- Audit privileged mutations.
+- Validate file type/size.
+- Use migrations.
+- Test direct API attempts by lower-privilege roles.
+- Deactivation revokes sessions while preserving authorship/history.

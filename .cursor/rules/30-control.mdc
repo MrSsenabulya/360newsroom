@@ -1,0 +1,33 @@
+---
+description: 360 Control implementation rules
+globs: ["apps/control/**/*"]
+alwaysApply: false
+---
+
+# 360 Control Rules
+
+Control is management/operations, not a second Newsroom.
+
+Interaction:
+Overview → anomaly → drill-down → action.
+
+Prioritize:
+- status;
+- exceptions;
+- deadlines;
+- delivery health;
+- platform health.
+
+Avoid generic SaaS card walls.
+
+Commercial may track editorial deliverables but may not edit journalism.
+
+Do not expose:
+- confidential Sources;
+- unrelated editorial internals;
+- secrets.
+
+Do not rebuild:
+- accounting;
+- full CRM;
+- monitoring platform.

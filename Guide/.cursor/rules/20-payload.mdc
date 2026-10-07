@@ -1,0 +1,19 @@
+---
+description: Payload CMS and newsroom rules
+globs: ["payload/**/*"]
+alwaysApply: false
+---
+
+# Payload / Newsroom Rules
+
+- Follow `data-model.md` and `newsroom-cms.md`.
+- Reporters/correspondents cannot publish directly.
+- Enforce workflow transitions server-side.
+- High-risk content escalates.
+- Private source info never enters public API/Search/analytics.
+- Use versions on major editorial collections.
+- Record EditorialActivity for workflow events.
+- Breaking Fast Lane stays minimal/mobile.
+- Do not over-customize Payload beyond required P0/P1 views.
+- Jobs must be observable/retryable.
+- Significant privileged mutations create audit events.

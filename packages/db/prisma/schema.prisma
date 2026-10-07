@@ -1,0 +1,1234 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Auth / system ─────────────────────────────────────────
+
+model UserProfile {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  role      Role     @default(JOURNALIST)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  campusScopes      CampusScope[]
+  auditEvents       AuditEvent[]
+  operationalEvents OperationalEvent[]
+  mediaUploaded     MediaAsset[]        @relation("MediaUploader")
+  articlesAuthored  ArticleAuthor[]
+  articlesEdited    Article[]           @relation("ArticleEditor")
+  articlesCreated   Article[]           @relation("ArticleCreator")
+  breakingReported  BreakingUpdate[]    @relation("BreakingReporter")
+  people            Person[]            @relation("PersonLinkedUser")
+  editorialActivity EditorialActivity[]
+  sourcesCreated    Source[]            @relation("SourceCreator")
+  sourcesVerified   Source[]            @relation("SourceVerifier")
+  articleVersions   ArticleVersion[]
+  opportunitiesCreated Opportunity[]    @relation("OpportunityCreator")
+  eventsCreated     Event[]             @relation("EventCreator")
+  vendorsCreated    Vendor[]            @relation("VendorCreator")
+  sponsorsOwned     Sponsor[]           @relation("SponsorOwner")
+  campaignsOwned    Campaign[]          @relation("CampaignOwner")
+  deliverablesOwned CampaignDeliverable[] @relation("DeliverableOwner")
+  leadsAssigned     CommercialLead[]    @relation("LeadOwner")
+
+  @@map("user_profiles")
+}
+
+enum Role {
+  SUPER_ADMIN
+  EDITOR_IN_CHIEF
+  MANAGING_EDITOR
+  EDITOR
+  JOURNALIST
+  CAMPUS_CORRESPONDENT
+  PROGRAMME_PRODUCER
+  COMMERCIAL_MANAGER
+  VENDOR_MANAGER
+  PLATFORM_ADMIN
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  service   String
+  status    String
+  detail    String?
+  checkedAt DateTime @default(now()) @map("checked_at")
+
+  @@index([service, checkedAt])
+  @@map("health_checks")
+}
+
+/// Operator-facing operational errors. Never surface `detail` to public/Newsroom UI.
+model OperationalEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+  surface     String
+  severity    String
+  message     String
+  detail      String?
+  requestPath String?  @map("request_path")
+  actorId     String?  @map("actor_id") @db.Uuid
+
+  actor UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([surface, createdAt])
+  @@map("operational_events")
+}
+
+// ─── Geography ─────────────────────────────────────────────
+
+enum EntityStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Country {
+  id        String       @id @default(cuid())
+  name      String
+  code      String       @unique
+  slug      String       @unique
+  timezone  String       @default("Africa/Kampala")
+  status    EntityStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  universities University[]
+
+  @@map("countries")
+}
+
+model University {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  shortName   String?      @map("short_name")
+  website     String?
+  description String?
+  status      EntityStatus @default(ACTIVE)
+  countryId   String       @map("country_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  country       Country        @relation(fields: [countryId], references: [id])
+  campuses      Campus[]
+  articles      Article[]
+  breaking      BreakingUpdate[]
+  people        Person[]
+  episodes      Episode[]
+  opportunities Opportunity[]
+  events        Event[]
+  campaignLinks CampaignUniversity[]
+
+  @@map("universities")
+}
+
+model Campus {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String       @unique
+  locationLabel String?      @map("location_label")
+  description   String?
+  status        EntityStatus @default(ACTIVE)
+  isActive      Boolean      @default(true) @map("is_active")
+  universityId  String       @map("university_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  university    University           @relation(fields: [universityId], references: [id])
+  scopes        CampusScope[]
+  articles      ArticleCampus[]
+  breaking      BreakingUpdate[]
+  episodes      EpisodeCampus[]
+  media         MediaAsset[]
+  opportunities OpportunityCampus[]
+  events        Event[]
+  vendors       VendorCampus[]
+  campaignLinks CampaignCampus[]
+  leadLinks     CommercialLeadCampus[]
+
+  @@map("campuses")
+}
+
+model CampusScope {
+  id       String @id @default(cuid())
+  userId   String @map("user_id") @db.Uuid
+  campusId String @map("campus_id")
+
+  user   UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus Campus      @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campusId])
+  @@map("campus_scopes")
+}
+
+// ─── People & orgs ─────────────────────────────────────────
+
+model Person {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  bio          String?
+  occupation   String?
+  universityId String?  @map("university_id")
+  linkedUserId String?  @map("linked_user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  university University? @relation(fields: [universityId], references: [id])
+  linkedUser UserProfile? @relation("PersonLinkedUser", fields: [linkedUserId], references: [id])
+
+  articleAuthors ArticleAuthor[]
+  episodeHosts   EpisodeHost[]
+  episodeGuests  EpisodeGuest[]
+  programmeHosts ProgrammeHost[]
+
+  @@map("people")
+}
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  type      String
+  website   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  opportunities Opportunity[]
+  events        Event[]
+  sponsors      Sponsor[]
+  leads         CommercialLead[]
+
+  @@map("organisations")
+}
+
+// ─── Topics & media ────────────────────────────────────────
+
+model Topic {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  articles    ArticleTopic[]
+  breaking    BreakingUpdate[]
+  programmes  ProgrammeTopic[]
+  episodes    EpisodeTopic[]
+  collections Collection[]
+
+  @@map("topics")
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  OTHER
+}
+
+enum MediaRights {
+  OWNED
+  LICENSED
+  THIRD_PARTY
+  PRESS_PUBLIC
+  RESTRICTED
+  UNKNOWN
+}
+
+model MediaAsset {
+  id             String      @id @default(cuid())
+  type           MediaType   @default(IMAGE)
+  storagePath    String?     @map("storage_path")
+  publicUrl      String?     @map("public_url")
+  providerId     String?     @map("provider_id")
+  altText        String?     @map("alt_text")
+  caption        String?
+  credit         String?
+  rights         MediaRights @default(UNKNOWN)
+  width          Int?
+  height         Int?
+  durationSec    Int?        @map("duration_sec")
+  campusId       String?     @map("campus_id")
+  uploadedById   String?     @map("uploaded_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  campus     Campus?      @relation(fields: [campusId], references: [id])
+  uploadedBy UserProfile? @relation("MediaUploader", fields: [uploadedById], references: [id])
+
+  articleHeroes    Article[]   @relation("ArticleHero")
+  programmeCovers  Programme[] @relation("ProgrammeCover")
+  episodeThumbs    Episode[]   @relation("EpisodeThumb")
+  eventPosters     Event[]     @relation("EventPoster")
+  vendorLogos      Vendor[]    @relation("VendorLogo")
+
+  @@map("media_assets")
+}
+
+// ─── Editorial ─────────────────────────────────────────────
+
+enum ArticleType {
+  NEWS
+  FEATURE
+  OPINION
+  INTERVIEW
+  EXPLAINER
+  REVIEW
+  ANNOUNCEMENT
+}
+
+enum WorkflowStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  VERIFICATION
+  READY
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PublicationStatus {
+  UNPUBLISHED
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  CONTESTED
+}
+
+enum EditorialRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Article {
+  id                 String            @id @default(cuid())
+  title              String
+  slug               String            @unique
+  standfirst         String?
+  body               String
+  articleType        ArticleType       @default(NEWS) @map("article_type")
+  workflowStatus     WorkflowStatus    @default(DRAFT) @map("workflow_status")
+  publicationStatus  PublicationStatus @default(UNPUBLISHED) @map("publication_status")
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  editorialRisk      EditorialRisk     @default(LOW) @map("editorial_risk")
+  heroMediaId        String?           @map("hero_media_id")
+  universityId       String?           @map("university_id")
+  editorId           String?           @map("editor_id") @db.Uuid
+  createdById        String?           @map("created_by_id") @db.Uuid
+  reviewNotes        String?           @map("review_notes")
+  seoTitle           String?           @map("seo_title")
+  seoDescription     String?           @map("seo_description")
+  firstPublishedAt   DateTime?         @map("first_published_at")
+  lastPublishedAt    DateTime?         @map("last_published_at")
+  scheduledAt        DateTime?         @map("scheduled_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  heroMedia  MediaAsset?  @relation("ArticleHero", fields: [heroMediaId], references: [id])
+  university University?  @relation(fields: [universityId], references: [id])
+  editor     UserProfile? @relation("ArticleEditor", fields: [editorId], references: [id])
+  createdBy  UserProfile? @relation("ArticleCreator", fields: [createdById], references: [id])
+
+  authors    ArticleAuthor[]
+  campuses   ArticleCampus[]
+  topics     ArticleTopic[]
+  breaking   BreakingUpdate[]
+  sources    Source[]
+  activity   EditorialActivity[]
+  versions   ArticleVersion[]
+
+  @@index([publicationStatus, firstPublishedAt])
+  @@index([workflowStatus])
+  @@index([scheduledAt])
+  @@map("articles")
+}
+
+model ArticleAuthor {
+  articleId String @map("article_id")
+  personId  String @map("person_id")
+  userId    String? @map("user_id") @db.Uuid
+
+  article Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  person  Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  user    UserProfile? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@id([articleId, personId])
+  @@map("article_authors")
+}
+
+model ArticleCampus {
+  articleId String @map("article_id")
+  campusId  String @map("campus_id")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  campus  Campus  @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, campusId])
+  @@map("article_campuses")
+}
+
+model ArticleTopic {
+  articleId String @map("article_id")
+  topicId   String @map("topic_id")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, topicId])
+  @@map("article_topics")
+}
+
+enum BreakingDevelopmentState {
+  SUBMITTED
+  VERIFICATION
+  DEVELOPING
+  RESOLVED
+  CONVERTED
+  ARCHIVED
+}
+
+enum BreakingPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model BreakingUpdate {
+  id                   String                   @id @default(cuid())
+  headline             String
+  slug                 String                   @unique
+  shortUpdate          String                   @map("short_update")
+  developmentState     BreakingDevelopmentState @default(SUBMITTED) @map("development_state")
+  publicationStatus    PublicationStatus        @default(UNPUBLISHED) @map("publication_status")
+  verificationStatus   VerificationStatus       @default(PENDING) @map("verification_status")
+  priority             BreakingPriority         @default(NORMAL)
+  bannerEnabled        Boolean                  @default(false) @map("banner_enabled")
+  /// Public-safe source context only — never private contacts.
+  sourceContext        String?                  @map("source_context")
+  campusId             String?                  @map("campus_id")
+  universityId         String?                  @map("university_id")
+  topicId              String?                  @map("topic_id")
+  reporterId           String?                  @map("reporter_id") @db.Uuid
+  relatedArticleId     String?                  @map("related_article_id")
+  firstPublishedAt     DateTime?                @map("first_published_at")
+  lastPublishedAt      DateTime?                @map("last_published_at")
+  resolvedAt           DateTime?                @map("resolved_at")
+  expiresAt            DateTime?                @map("expires_at")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+
+  campus         Campus?      @relation(fields: [campusId], references: [id])
+  university     University?  @relation(fields: [universityId], references: [id])
+  topic          Topic?       @relation(fields: [topicId], references: [id])
+  reporter       UserProfile? @relation("BreakingReporter", fields: [reporterId], references: [id])
+  relatedArticle Article?     @relation(fields: [relatedArticleId], references: [id])
+  timeline       BreakingTimelineEntry[]
+  sources        Source[]
+  activity       EditorialActivity[]
+
+  @@index([publicationStatus, firstPublishedAt])
+  @@index([developmentState])
+  @@map("breaking_updates")
+}
+
+model BreakingTimelineEntry {
+  id         String   @id @default(cuid())
+  breakingId String   @map("breaking_id")
+  body       String
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  breaking BreakingUpdate @relation(fields: [breakingId], references: [id], onDelete: Cascade)
+
+  @@index([breakingId, occurredAt])
+  @@map("breaking_timeline_entries")
+}
+
+// ─── Programmes & episodes ─────────────────────────────────
+
+enum ProgrammeType {
+  NEWS
+  TALK
+  CULTURE
+  DOCS
+  OTHER
+}
+
+enum ProgrammeStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Programme {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  description String?
+  programmeType ProgrammeType @default(TALK) @map("programme_type")
+  status      ProgrammeStatus @default(DRAFT)
+  coverId     String?         @map("cover_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  cover    MediaAsset?      @relation("ProgrammeCover", fields: [coverId], references: [id])
+  hosts    ProgrammeHost[]
+  topics   ProgrammeTopic[]
+  episodes Episode[]
+
+  @@map("programmes")
+}
+
+model ProgrammeHost {
+  programmeId String @map("programme_id")
+  personId    String @map("person_id")
+
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([programmeId, personId])
+  @@map("programme_hosts")
+}
+
+model ProgrammeTopic {
+  programmeId String @map("programme_id")
+  topicId     String @map("topic_id")
+
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  topic     Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([programmeId, topicId])
+  @@map("programme_topics")
+}
+
+enum EpisodeProductionStatus {
+  PLANNED
+  PRODUCTION
+  EDITING
+  EDITORIAL_REVIEW
+  READY
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Episode {
+  id                String                  @id @default(cuid())
+  programmeId       String                  @map("programme_id")
+  title             String
+  slug              String
+  description       String?
+  episodeNumber     Int?                    @map("episode_number")
+  durationSec       Int?                    @map("duration_sec")
+  videoUrl          String?                 @map("video_url")
+  transcript        String?
+  productionStatus  EpisodeProductionStatus @default(PLANNED) @map("production_status")
+  publicationStatus PublicationStatus       @default(UNPUBLISHED) @map("publication_status")
+  thumbnailId       String?                 @map("thumbnail_id")
+  universityId      String?                 @map("university_id")
+  publishedAt       DateTime?               @map("published_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  programme  Programme   @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  thumbnail  MediaAsset? @relation("EpisodeThumb", fields: [thumbnailId], references: [id])
+  university University? @relation(fields: [universityId], references: [id])
+  hosts      EpisodeHost[]
+  guests     EpisodeGuest[]
+  campuses   EpisodeCampus[]
+  topics     EpisodeTopic[]
+
+  @@unique([programmeId, slug])
+  @@index([publicationStatus, publishedAt])
+  @@map("episodes")
+}
+
+model EpisodeHost {
+  episodeId String @map("episode_id")
+  personId  String @map("person_id")
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  person  Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([episodeId, personId])
+  @@map("episode_hosts")
+}
+
+model EpisodeGuest {
+  episodeId String @map("episode_id")
+  personId  String @map("person_id")
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  person  Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([episodeId, personId])
+  @@map("episode_guests")
+}
+
+model EpisodeCampus {
+  episodeId String @map("episode_id")
+  campusId  String @map("campus_id")
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  campus  Campus  @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([episodeId, campusId])
+  @@map("episode_campuses")
+}
+
+model EpisodeTopic {
+  episodeId String @map("episode_id")
+  topicId   String @map("topic_id")
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([episodeId, topicId])
+  @@map("episode_topics")
+}
+
+// ─── Newsroom operations (Milestone 2) ─────────────────────
+
+enum SourceType {
+  OFFICIAL_STATEMENT
+  EYEWITNESS
+  INTERVIEW
+  DOCUMENT
+  PUBLIC_RECORD
+  ORGANISATION
+  SOCIAL_POST
+  ANONYMOUS
+  OTHER
+}
+
+enum SourceVerification {
+  UNVERIFIED
+  IN_PROGRESS
+  PARTIALLY_VERIFIED
+  VERIFIED
+  OFFICIAL_CONFIRMATION
+  DISPUTED
+}
+
+model Source {
+  id                   String             @id @default(cuid())
+  type                 SourceType         @default(OTHER)
+  label                String
+  /// Private — never expose in public serializers.
+  privateIdentity      String?            @map("private_identity")
+  /// Private reporter notes — never expose publicly.
+  privateNotes         String?            @map("private_notes")
+  evidenceUrl          String?            @map("evidence_url")
+  publiclyIdentifiable Boolean            @default(false) @map("publicly_identifiable")
+  verification         SourceVerification @default(UNVERIFIED)
+  articleId            String?            @map("article_id")
+  breakingId           String?            @map("breaking_id")
+  createdById          String?            @map("created_by_id") @db.Uuid
+  verifiedById         String?            @map("verified_by_id") @db.Uuid
+  verifiedAt           DateTime?          @map("verified_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  article    Article?      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  breaking   BreakingUpdate? @relation(fields: [breakingId], references: [id], onDelete: Cascade)
+  createdBy  UserProfile?  @relation("SourceCreator", fields: [createdById], references: [id])
+  verifiedBy UserProfile?  @relation("SourceVerifier", fields: [verifiedById], references: [id])
+
+  @@index([articleId])
+  @@index([breakingId])
+  @@map("sources")
+}
+
+model EditorialActivity {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  note       String?
+  fromStatus String?  @map("from_status")
+  toStatus   String?  @map("to_status")
+  articleId  String?  @map("article_id")
+  breakingId String?  @map("breaking_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor    UserProfile?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  article  Article?        @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  breaking BreakingUpdate? @relation(fields: [breakingId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, createdAt])
+  @@index([breakingId, createdAt])
+  @@index([createdAt])
+  @@map("editorial_activity")
+}
+
+model ArticleVersion {
+  id             String   @id @default(cuid())
+  articleId      String   @map("article_id")
+  version        Int
+  title          String
+  standfirst     String?
+  body           String
+  workflowStatus String   @map("workflow_status")
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  article   Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdBy UserProfile? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([articleId, version])
+  @@index([articleId, createdAt])
+  @@map("article_versions")
+}
+
+// ─── Utility (Milestone 4) ─────────────────────────────────
+
+enum OpportunityType {
+  INTERNSHIP
+  GRADUATE_JOB
+  JOB
+  SCHOLARSHIP
+  FELLOWSHIP
+  COMPETITION
+  GRANT
+  CAMPUS_AMBASSADOR
+  VOLUNTEER
+  CALL_FOR_APPLICATIONS
+  OTHER
+}
+
+enum OpportunityListingStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  ARCHIVED
+}
+
+enum WorkMode {
+  ONSITE
+  HYBRID
+  REMOTE
+  UNKNOWN
+}
+
+model Opportunity {
+  id                 String                   @id @default(cuid())
+  title              String
+  slug               String                   @unique
+  description        String
+  eligibility        String?
+  location           String?
+  workMode           WorkMode                 @default(UNKNOWN) @map("work_mode")
+  compensation       String?
+  applicationUrl     String?                  @map("application_url")
+  contactPublic      String?                  @map("contact_public")
+  sourceLabel        String?                  @map("source_label")
+  opportunityType    OpportunityType          @default(OTHER) @map("opportunity_type")
+  listingStatus      OpportunityListingStatus @default(DRAFT) @map("listing_status")
+  publicationStatus  PublicationStatus        @default(UNPUBLISHED) @map("publication_status")
+  verificationStatus VerificationStatus       @default(UNVERIFIED) @map("verification_status")
+  featured           Boolean                  @default(false)
+  deadline           DateTime?
+  expiresAt          DateTime?                @map("expires_at")
+  publishedAt        DateTime?                @map("published_at")
+  organisationId     String?                  @map("organisation_id")
+  universityId       String?                  @map("university_id")
+  createdById        String?                  @map("created_by_id") @db.Uuid
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+
+  organisation Organisation?       @relation(fields: [organisationId], references: [id])
+  university   University?         @relation(fields: [universityId], references: [id])
+  createdBy    UserProfile?        @relation("OpportunityCreator", fields: [createdById], references: [id])
+  campuses     OpportunityCampus[]
+
+  @@index([publicationStatus, listingStatus, deadline])
+  @@index([opportunityType, listingStatus])
+  @@index([organisationId])
+  @@index([universityId])
+  @@map("opportunities")
+}
+
+model OpportunityCampus {
+  opportunityId String @map("opportunity_id")
+  campusId      String @map("campus_id")
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  campus      Campus      @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([opportunityId, campusId])
+  @@index([campusId])
+  @@map("opportunity_campuses")
+}
+
+enum EventType {
+  ENTERTAINMENT
+  ACADEMIC
+  CAREER
+  SPORTS
+  UNIVERSITY
+  RELIGIOUS
+  CULTURAL
+  CLUB
+  CAMPUS_360
+  OTHER
+}
+
+enum EventLifecycleStatus {
+  UPCOMING
+  HAPPENING_NOW
+  POSTPONED
+  CANCELLED
+  COMPLETED
+}
+
+model Event {
+  id                String               @id @default(cuid())
+  name              String
+  slug              String               @unique
+  description       String
+  eventType         EventType            @default(OTHER) @map("event_type")
+  lifecycleStatus   EventLifecycleStatus @default(UPCOMING) @map("lifecycle_status")
+  publicationStatus PublicationStatus    @default(UNPUBLISHED) @map("publication_status")
+  venue             String?
+  ticketUrl         String?              @map("ticket_url")
+  priceLabel        String?              @map("price_label")
+  contactPublic     String?              @map("contact_public")
+  startAt           DateTime             @map("start_at")
+  endAt             DateTime?            @map("end_at")
+  publishedAt       DateTime?            @map("published_at")
+  campusId          String?              @map("campus_id")
+  universityId      String?              @map("university_id")
+  organisationId    String?              @map("organisation_id")
+  posterId          String?              @map("poster_id")
+  createdById       String?              @map("created_by_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  campus       Campus?       @relation(fields: [campusId], references: [id])
+  university   University?   @relation(fields: [universityId], references: [id])
+  organisation Organisation? @relation(fields: [organisationId], references: [id])
+  poster       MediaAsset?   @relation("EventPoster", fields: [posterId], references: [id])
+  createdBy    UserProfile?  @relation("EventCreator", fields: [createdById], references: [id])
+
+  @@index([publicationStatus, lifecycleStatus, startAt])
+  @@index([campusId, startAt])
+  @@index([universityId])
+  @@index([organisationId])
+  @@map("events")
+}
+
+enum VendorListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  ARCHIVED
+}
+
+model VendorCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vendors Vendor[]
+
+  @@map("vendor_categories")
+}
+
+model Vendor {
+  id            String              @id @default(cuid())
+  businessName  String              @map("business_name")
+  slug          String              @unique
+  description   String
+  address       String?
+  phone         String?
+  whatsapp      String?
+  instagram     String?
+  website       String?
+  openingHours  String?             @map("opening_hours")
+  priceRange    String?             @map("price_range")
+  verified      Boolean             @default(false)
+  featured      Boolean             @default(false)
+  listingStatus VendorListingStatus @default(DRAFT) @map("listing_status")
+  listingStart  DateTime?           @map("listing_start")
+  listingEnd    DateTime?           @map("listing_end")
+  categoryId    String?             @map("category_id")
+  logoId        String?             @map("logo_id")
+  createdById   String?             @map("created_by_id") @db.Uuid
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  category  VendorCategory? @relation(fields: [categoryId], references: [id])
+  logo      MediaAsset?     @relation("VendorLogo", fields: [logoId], references: [id])
+  createdBy UserProfile?    @relation("VendorCreator", fields: [createdById], references: [id])
+  campuses  VendorCampus[]
+
+  @@index([listingStatus, featured])
+  @@index([categoryId])
+  @@map("vendors")
+}
+
+model VendorCampus {
+  vendorId String @map("vendor_id")
+  campusId String @map("campus_id")
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, campusId])
+  @@index([campusId])
+  @@map("vendor_campuses")
+}
+
+enum CollectionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Collection {
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  description String?
+  status      CollectionStatus @default(DRAFT)
+  topicId     String?          @map("topic_id")
+  publishedAt DateTime?        @map("published_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  topic Topic?           @relation(fields: [topicId], references: [id])
+  items CollectionItem[]
+
+  @@index([status, publishedAt])
+  @@index([topicId])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String   @map("collection_id")
+  entityType   String   @map("entity_type")
+  entityId     String   @map("entity_id")
+  title        String
+  urlPath      String   @map("url_path")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId, sortOrder])
+  @@map("collection_items")
+}
+
+enum SystemJobStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+model SystemJobRun {
+  id         String          @id @default(cuid())
+  jobName    String          @map("job_name")
+  status     SystemJobStatus @default(RUNNING)
+  detail     Json?
+  error      String?
+  startedAt  DateTime        @default(now()) @map("started_at")
+  finishedAt DateTime?       @map("finished_at")
+
+  @@index([jobName, startedAt])
+  @@index([status, startedAt])
+  @@map("system_job_runs")
+}
+
+enum StoryTipStatus {
+  NEW
+  TRIAGED
+  ACCEPTED
+  DECLINED
+  SPAM
+}
+
+model StoryTip {
+  id             String         @id @default(cuid())
+  message        String
+  campusHint     String?        @map("campus_hint")
+  contactOptional String?       @map("contact_optional")
+  status         StoryTipStatus @default(NEW)
+  sourceIpHash   String?        @map("source_ip_hash")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("story_tips")
+}
+
+// ─── Commercial (Milestone 5) ──────────────────────────────
+
+enum SponsorStatus {
+  PROSPECT
+  ACTIVE
+  PAUSED
+  CHURNED
+  ARCHIVED
+}
+
+model Sponsor {
+  id               String        @id @default(cuid())
+  organisationId   String        @map("organisation_id")
+  status           SponsorStatus @default(PROSPECT)
+  /// Private commercial contacts — never expose publicly.
+  commercialContact String?      @map("commercial_contact")
+  /// Private relationship notes — never expose publicly.
+  notes            String?
+  ownerId          String?       @map("owner_id") @db.Uuid
+  lastContactAt    DateTime?     @map("last_contact_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  owner        UserProfile? @relation("SponsorOwner", fields: [ownerId], references: [id])
+  campaigns    Campaign[]
+
+  @@index([status, updatedAt])
+  @@index([organisationId])
+  @@index([ownerId])
+  @@map("sponsors")
+}
+
+enum CampaignStatus {
+  LEAD
+  PROPOSAL
+  CONTRACTED
+  SETUP
+  SCHEDULED
+  LIVE
+  PAUSED
+  COMPLETED
+  REPORTED
+  RENEWAL
+  CANCELLED
+}
+
+model Campaign {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  sponsorId     String         @map("sponsor_id")
+  ownerId       String?        @map("owner_id") @db.Uuid
+  objectives    String?
+  /// Private budget/contract reference — never expose publicly or in client bundles for anonymous users.
+  contractValue String?        @map("contract_value")
+  targetAudience String?       @map("target_audience")
+  status        CampaignStatus @default(LEAD)
+  startAt       DateTime?      @map("start_at")
+  endAt         DateTime?      @map("end_at")
+  /// Private commercial notes.
+  notes         String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  sponsor      Sponsor               @relation(fields: [sponsorId], references: [id])
+  owner        UserProfile?          @relation("CampaignOwner", fields: [ownerId], references: [id])
+  campuses     CampaignCampus[]
+  universities CampaignUniversity[]
+  deliverables CampaignDeliverable[]
+  placements   Placement[]
+
+  @@index([status, startAt])
+  @@index([sponsorId])
+  @@index([ownerId])
+  @@map("campaigns")
+}
+
+model CampaignCampus {
+  campaignId String @map("campaign_id")
+  campusId   String @map("campus_id")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campus   Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, campusId])
+  @@index([campusId])
+  @@map("campaign_campuses")
+}
+
+model CampaignUniversity {
+  campaignId   String @map("campaign_id")
+  universityId String @map("university_id")
+
+  campaign   Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, universityId])
+  @@index([universityId])
+  @@map("campaign_universities")
+}
+
+enum DeliverableType {
+  PROGRAMME_SPONSOR
+  HOMEPAGE_FEATURE
+  CAMPUS_PAGE_SPONSOR
+  OPPORTUNITY_SPONSOR
+  EVENT_SPONSOR
+  ARTICLE_SPONSOR
+  VIDEO_SPONSOR
+  NEWSLETTER_SPONSOR
+  VENDOR_FEATURE
+  EVENT_COVERAGE
+  OTHER
+}
+
+enum DeliverableStatus {
+  PLANNED
+  BRIEFED
+  IN_PROGRESS
+  IN_REVIEW
+  DELIVERED
+  LIVE
+  REPORTED
+  CANCELLED
+}
+
+model CampaignDeliverable {
+  id               String            @id @default(cuid())
+  campaignId       String            @map("campaign_id")
+  title            String
+  deliverableType  DeliverableType   @default(OTHER) @map("deliverable_type")
+  status           DeliverableStatus @default(PLANNED)
+  dueAt            DateTime?         @map("due_at")
+  ownerId          String?           @map("owner_id") @db.Uuid
+  relatedEntityType String?          @map("related_entity_type")
+  relatedEntityId  String?           @map("related_entity_id")
+  relatedUrlPath   String?           @map("related_url_path")
+  notes            String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  campaign Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  owner    UserProfile? @relation("DeliverableOwner", fields: [ownerId], references: [id])
+
+  @@index([campaignId, status, dueAt])
+  @@index([ownerId])
+  @@map("campaign_deliverables")
+}
+
+enum PlacementStatus {
+  RESERVED
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Placement {
+  id         String          @id @default(cuid())
+  campaignId String          @map("campaign_id")
+  type       DeliverableType @default(OTHER)
+  label      String
+  status     PlacementStatus @default(RESERVED)
+  startAt    DateTime?       @map("start_at")
+  endAt      DateTime?       @map("end_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+  @@index([status, startAt])
+  @@map("placements")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  FOLLOW_UP
+}
+
+model CommercialLead {
+  id               String     @id @default(cuid())
+  organisationName String     @map("organisation_name")
+  organisationId   String?    @map("organisation_id")
+  contactName      String?    @map("contact_name")
+  contactEmail     String?    @map("contact_email")
+  contactPhone     String?    @map("contact_phone")
+  interest         String
+  budgetRange      String?    @map("budget_range")
+  message          String?
+  source           String     @default("control")
+  status           LeadStatus @default(NEW)
+  ownerId          String?    @map("owner_id") @db.Uuid
+  nextFollowUpAt   DateTime?  @map("next_follow_up_at")
+  /// Private commercial notes.
+  notes            String?
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  organisation Organisation?         @relation(fields: [organisationId], references: [id])
+  owner        UserProfile?          @relation("LeadOwner", fields: [ownerId], references: [id])
+  campuses     CommercialLeadCampus[]
+
+  @@index([status, nextFollowUpAt])
+  @@index([organisationId])
+  @@index([ownerId])
+  @@map("commercial_leads")
+}
+
+model CommercialLeadCampus {
+  leadId   String @map("lead_id")
+  campusId String @map("campus_id")
+
+  lead   CommercialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campus Campus         @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, campusId])
+  @@index([campusId])
+  @@map("commercial_lead_campuses")
+}

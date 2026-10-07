@@ -1,0 +1,20 @@
+---
+description: Public Next.js and shared UI rules
+globs: ["apps/web/**/*", "packages/ui/**/*"]
+alwaysApply: false
+---
+
+# Public Frontend Rules
+
+- Follow `information-architecture.md`, `design-system.md`, and `wireframes-and-interactions.md`.
+- Prefer server rendering for editorial/SEO content.
+- Minimize client JavaScript.
+- No autoplay video on Home.
+- No mandatory account.
+- Respect Campus context without hiding cross-campus content.
+- Stable direct URLs for core entities.
+- Loading/empty/error/temporal states are required.
+- Use shared semantic tokens/components.
+- Avoid generic all-card layouts.
+- Target WCAG 2.2 AA.
+- Test mobile and throttled networks.

@@ -1,0 +1,28 @@
+---
+description: Campus 360 global product and scope rules
+alwaysApply: true
+---
+
+# Campus 360 Global Rules
+
+Read `AGENTS.md`, `Guide/context.md`, `Guide/product-requirements.md`, `Guide/architecture.md`, and `docs/adr/`.
+
+Campus 360 is a youth-first campus media and information network.
+
+Do not:
+- add out-of-scope V1 features without approval;
+- turn public UX into streaming-first;
+- require login for core public content;
+- add AI-generated journalism;
+- create marketplace/social-network functionality;
+- silently change architecture.
+
+Preserve:
+- mobile-first public UX;
+- structured entities;
+- Breaking speed;
+- editorial trust;
+- role separation;
+- public/private data boundaries.
+
+Backend: Supabase + Prisma (ADR 0001), not Payload.

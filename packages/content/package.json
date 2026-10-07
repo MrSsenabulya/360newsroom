@@ -1,0 +1,38 @@
+{
+  "name": "@campus360/content",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./public": "./src/public.ts",
+    "./editorial": "./src/editorial.ts",
+    "./actor": "./src/actor.ts",
+    "./utility": "./src/utility.ts",
+    "./jobs": "./src/jobs.ts",
+    "./commercial": "./src/commercial.ts",
+    "./control": "./src/control.ts",
+    "./tips": "./src/tips.ts",
+    "./ops": "./src/ops.ts",
+    "./sanitize": "./src/sanitize.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "jobs:tick": "tsx ./scripts/jobs-tick.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@campus360/db": "*",
+    "@campus360/domain": "*",
+    "@campus360/search": "*",
+    "@campus360/video": "*",
+    "sanitize-html": "^2.17.7"
+  },
+  "devDependencies": {
+    "@types/sanitize-html": "^2.16.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

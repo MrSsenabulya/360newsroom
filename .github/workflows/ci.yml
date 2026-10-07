@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build apps
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/campus360
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/campus360
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: public-anon-key
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_ANON_KEY: public-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: service-role-key
+        run: npm run build

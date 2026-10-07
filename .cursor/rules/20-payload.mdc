@@ -1,0 +1,15 @@
+---
+description: Campus 360 data layer and newsroom rules
+alwaysApply: true
+---
+
+# Campus 360 Data / Newsroom
+
+Supabase + Prisma are the backend foundation (see `docs/adr/0001-supabase-prisma.md`).
+
+- Schema and migrations live in `packages/db`.
+- Internal auth is Supabase Auth; profiles live in `user_profiles`.
+- Object storage goes through `@campus360/storage` (Supabase Storage).
+- Newsroom is `apps/newsroom` — implement Guide newsroom workflows there, not Payload Admin.
+- Never expose private source notes, internal comments, or commercial internals in public APIs.
+- Prefer typed repositories/services over ad hoc Prisma calls in UI components.

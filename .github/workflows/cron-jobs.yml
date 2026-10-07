@@ -1,0 +1,33 @@
+# Cron: utility jobs tick
+
+# Runs every 10 minutes against Control production.
+# Requires repo secrets:
+#   CONTROL_APP_URL     e.g. https://control.campus360.com
+#   JOBS_CRON_SECRET    same value as Control env JOBS_CRON_SECRET
+
+name: Cron jobs tick
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/jobs/tick
+        env:
+          CONTROL_APP_URL: ${{ secrets.CONTROL_APP_URL }}
+          JOBS_CRON_SECRET: ${{ secrets.JOBS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CONTROL_APP_URL:-}" ] || [ -z "${JOBS_CRON_SECRET:-}" ]; then
+            echo "Missing CONTROL_APP_URL or JOBS_CRON_SECRET secrets"
+            exit 1
+          fi
+          URL="${CONTROL_APP_URL%/}/api/jobs/tick"
+          curl -fsS -X POST "$URL" \
+            -H "Authorization: Bearer ${JOBS_CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}'

@@ -1,0 +1,36 @@
+{
+  "name": "campus360",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run generate -w @campus360/db",
+    "db:migrate": "npm run migrate -w @campus360/db",
+    "db:push": "npm run push -w @campus360/db",
+    "db:seed": "npm run seed -w @campus360/db",
+    "db:studio": "npm run studio -w @campus360/db",
+    "jobs:tick": "dotenv -e .env -- npm run jobs:tick -w @campus360/content",
+    "smoke:staging": "node ./scripts/staging-smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "dotenv-cli": "^11.0.0",
+    "prettier": "^3.5.3",
+    "prisma": "^7.10.0",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

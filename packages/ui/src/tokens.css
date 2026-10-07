@@ -1,0 +1,74 @@
+:root {
+  /* Neutrals — light public surface (design system) */
+  --c360-ink-1000: #101114;
+  --c360-ink-900: #181a1f;
+  --c360-slate-700: #42464f;
+  --c360-slate-500: #70757f;
+  --c360-slate-300: #c4c7cd;
+  --c360-slate-200: #dfe1e5;
+  --c360-paper: #f7f5f0;
+  --c360-surface: #ffffff;
+
+  /* Brand — derived from logo gradient (coral → magenta → purple) */
+  --c360-signal-400: #fdab49;
+  --c360-signal-500: #e86b64;
+  --c360-signal-600: #d7387a;
+  --c360-signal-700: #9744ad;
+  --c360-pulse-500: #fdab49;
+
+  /* Semantic */
+  --c360-critical: #d92d20;
+  --c360-warning: #d97706;
+  --c360-success: #16803c;
+  --c360-info: #2563eb;
+
+  /* Semantic roles */
+  --bg-page: var(--c360-paper);
+  --bg-surface: var(--c360-surface);
+  --bg-subtle: #efece5;
+  --bg-inverse: var(--c360-ink-900);
+  --text-primary: var(--c360-ink-1000);
+  --text-secondary: var(--c360-slate-700);
+  --text-muted: var(--c360-slate-500);
+  --text-inverse: #f7f5f0;
+  --border-default: var(--c360-slate-200);
+  --border-subtle: #ebe8e1;
+  --border-strong: var(--c360-slate-300);
+  --action-primary: var(--c360-signal-600);
+  --action-primary-hover: var(--c360-signal-700);
+  --status-critical: var(--c360-critical);
+  --status-warning: var(--c360-warning);
+  --status-success: var(--c360-success);
+
+  /* Brand gradient for marks / accents only */
+  --brand-gradient: linear-gradient(
+    90deg,
+    var(--c360-signal-400) 0%,
+    var(--c360-signal-500) 24%,
+    var(--c360-signal-600) 42%,
+    var(--c360-signal-700) 86%
+  );
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius — sharper editorial language */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Type */
+  --font-sans: 'Archivo', 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4', 'Georgia', serif;
+}

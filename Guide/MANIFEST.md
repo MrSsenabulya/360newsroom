@@ -1,0 +1,37 @@
+# Campus 360 Handoff Manifest
+
+- `.cursor/rules/00-project.mdc`
+- `.cursor/rules/10-frontend.mdc`
+- `.cursor/rules/20-payload.mdc`
+- `.cursor/rules/30-control.mdc`
+- `.cursor/rules/40-security.mdc`
+- `ADR-TEMPLATE.md`
+- `AGENTS.md`
+- `README.md`
+- `access-control.md`
+- `analytics-observability.md`
+- `api-contracts.md`
+- `architecture.md`
+- `content-governance.md`
+- `content-migration.md`
+- `context.md`
+- `control-room.md`
+- `cursor-prompt.md`
+- `data-model.md`
+- `design-system.md`
+- `engineering-standards.md`
+- `implementation-plan.md`
+- `information-architecture.md`
+- `newsroom-cms.md`
+- `open-decisions.md`
+- `product-requirements.md`
+- `testing-qa.md`
+- `user-journeys.md`
+- `visual-references.md`
+- `visuals/00_phase8_contact_sheet.png`
+- `visuals/01_public_signal.png`
+- `visuals/02_breaking_campus.png`
+- `visuals/03_hotseat_watch.png`
+- `visuals/04_newsroom.png`
+- `visuals/05_control.png`
+- `wireframes-and-interactions.md`
